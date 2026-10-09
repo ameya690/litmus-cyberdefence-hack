@@ -7,7 +7,8 @@ venv/
 env/
 
 # Litmus runtime
-challenge/secret
+**/challenge/secret
+litmus/challenge/secret
 *.log
 .env
 
