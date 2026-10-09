@@ -15,6 +15,7 @@ the target itself publishes no host port.
 """
 import argparse
 import os
+import re
 import sys
 import time
 
@@ -29,6 +30,19 @@ from events import EventLog  # noqa: E402
 
 SECRET_PATH = os.path.join(LITMUS, "challenge", "secret")
 CAPTURE_PATH = os.path.join(LITMUS, "capture", "wire.log")
+
+
+def load_env(path):
+    """Load KEY=VALUE lines from a .env file into the environment (no override)."""
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+    except FileNotFoundError:
+        pass
 
 # Same candidates as the scripted baseline (prove.py): the Detect-stage findings.
 from prove import CANDIDATES  # noqa: E402
@@ -45,6 +59,33 @@ def read_capture():
             return f.read()
     except FileNotFoundError:
         return b""
+
+
+def proof_in_capture(raw, flag, endpoint):
+    """Return the actual request that proved THIS finding, or None.
+
+    The capture records every target response the proxy saw, tagged with the
+    request that produced it. A finding is proven ONLY if the flag appears in a
+    response to that finding's OWN endpoint -- so a roaming agent that exploits
+    the real traversal while nominally attacking a decoy does NOT get that decoy
+    credited. The returned string is the real request (not a template).
+    """
+    flag_b = flag.encode() if isinstance(flag, str) else flag
+    for part in re.split(rb"\n### ", b"\n" + raw):
+        part = part.strip(b"\n")
+        if not part:
+            continue
+        nl = part.find(b"\n")
+        header = (part[:nl] if nl >= 0 else part).decode("utf-8", "replace")
+        body = part[nl + 1:] if nl >= 0 else b""
+        try:  # header looks like "GET /download?file=... -> 200"
+            method, rest = header.split(" ", 1)
+            path_qs = rest.rsplit(" -> ", 1)[0]
+        except ValueError:
+            continue
+        if path_qs.split("?", 1)[0] == endpoint and flag_b in body:
+            return f"{method} {path_qs}"
+    return None
 
 
 def wait_for_target(proxy_url, tries=20):
@@ -73,8 +114,9 @@ def prove_candidate(c, oracle, proxy_url, log, use_agent, agent_timeout):
         print("  => REJECTED (baseline leaked the flag)")
         return {"id": c["id"], "status": "REJECTED", "driver": None}
 
-    # 2) Live agent attempt (through the proxy), if enabled.
-    driver, note = None, None
+    # 2) Live agent attempt (through the proxy), if enabled. A proof counts only
+    #    if the flag came back from THIS finding's own endpoint (see proof_in_capture).
+    driver, note, artifact = None, None, None
     reset_capture()
     t0 = time.time()
     if use_agent:
@@ -84,20 +126,21 @@ def prove_candidate(c, oracle, proxy_url, log, use_agent, agent_timeout):
         except (agent_mod.AgentUnavailable, agent_mod.AgentTimeout) as e:
             note = f"{type(e).__name__}: {e}"
             print(f"  agent: {note} -> falling back")
-    if oracle.verify(read_capture()):
+    artifact = proof_in_capture(read_capture(), oracle.flag, c["endpoint"])
+    if artifact:
         driver = "agent"
 
     # 3) Fallback: scripted exploit through the proxy (invisible handoff).
     if driver is None:
         reset_capture()
         exploit_mod.exploit(proxy_url, c["endpoint"], c["param"], c["exploit"])
-        if oracle.verify(read_capture()):
+        artifact = proof_in_capture(read_capture(), oracle.flag, c["endpoint"])
+        if artifact:
             driver = "fallback"
 
     ms = int((time.time() - t0) * 1000)
     proven = driver is not None
     status = "PROVEN" if proven else "UNPROVEN"
-    artifact = f"GET {c['endpoint']}?{c['param']}={c['exploit']}" if proven else None
     log.emit("proof_attempted", id=c["id"], ms=ms, driver=driver, agent_note=note)
     log.emit("proof_result", id=c["id"], status=status, artifact=artifact, ms=ms, driver=driver)
     print(f"  => {status}" + (f"  (proof: {artifact})" if artifact else ""))
@@ -113,6 +156,7 @@ def main():
     ap.add_argument("--agent-timeout", type=int, default=75)
     args = ap.parse_args()
 
+    load_env(os.path.join(LITMUS, ".env"))
     log = EventLog(args.events)
     oracle = FileReadOracle(SECRET_PATH)
     use_agent = not args.no_agent
