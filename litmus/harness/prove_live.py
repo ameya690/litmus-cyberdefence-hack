@@ -158,22 +158,35 @@ def main():
     ap.add_argument("--no-agent", action="store_true",
                     help="skip the LLM agent; use the scripted exploit only")
     ap.add_argument("--agent-timeout", type=int, default=75)
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="run the candidate set N times with distinct ids (load/stress)")
     args = ap.parse_args()
+
+    # Build the run list: the candidate set repeated N times (stress/load). Distinct
+    # ids per repeat so the funnel and dashboard see independent findings.
+    run_candidates = []
+    for r in range(max(1, args.repeat)):
+        for c in CANDIDATES:
+            cc = dict(c)
+            if args.repeat > 1:
+                cc["id"] = f"{c['id']}-{r + 1}"
+            run_candidates.append(cc)
 
     load_env(os.path.join(LITMUS, ".env"))
     log = EventLog(args.events)
     oracle = FileReadOracle(SECRET_PATH)
     use_agent = not args.no_agent
     log.emit("run_started", mode="live", proxy=args.proxy_url,
-             agent=use_agent, candidates=len(CANDIDATES))
+             agent=use_agent, candidates=len(run_candidates))
 
-    print(f"== Litmus Prove (LIVE) ==  proxy={args.proxy_url}  agent={'on' if use_agent else 'off'}")
+    print(f"== Litmus Prove (LIVE) ==  proxy={args.proxy_url}  agent={'on' if use_agent else 'off'}"
+          f"  candidates={len(run_candidates)}")
     if not wait_for_target(args.proxy_url):
         print("ERROR: target not reachable through proxy", file=sys.stderr)
         sys.exit(2)
 
     results = [prove_candidate(c, oracle, args.proxy_url, log, use_agent, args.agent_timeout)
-               for c in CANDIDATES]
+               for c in run_candidates]
     proven = sum(1 for r in results if r["status"] == "PROVEN")
     by = {}
     for r in results:

@@ -69,9 +69,12 @@ SYSTEM = (
 
 
 def _hint(candidate):
+    ep = candidate.get("endpoint")
     return (
-        f"Semgrep finding: {candidate.get('finding')}. A likely vulnerable endpoint is "
-        f"{candidate.get('endpoint')} with parameter '{candidate.get('param')}'. Begin."
+        f"Semgrep finding: {candidate.get('finding')}. The vulnerable endpoint under test "
+        f"is {ep} with parameter '{candidate.get('param')}'. You may send requests ONLY to "
+        f"{ep} (any request to a different path is blocked); vary the '{candidate.get('param')}' "
+        f"value to exploit THIS endpoint. If {ep} cannot yield the secret, say so. Begin."
     )
 
 
@@ -86,6 +89,23 @@ def _http_get(proxy_url, path):
     except Exception as e:  # noqa: BLE001
         return f"[request error] {e}"
     return body.decode("utf-8", "replace")[:4000]
+
+
+def _scoped_get(proxy_url, path, endpoint):
+    """Only allow requests to the candidate's own endpoint.
+
+    The agent attacks ONE finding at a time, so it may vary the parameter but not
+    roam to other endpoints (which would let it prove the real traversal while
+    nominally attacking a decoy). This is the agent's only network access, so the
+    restriction is enforced here, not merely requested in the prompt.
+    """
+    p = path if path.startswith("/") else "/" + path
+    base = (p.split("?", 1)[0].rstrip("/") or "/")
+    want = (endpoint.rstrip("/") or "/")
+    if base != want:
+        return (f"[blocked] For this test you may only send requests to {endpoint}. "
+                f"'{base}' is out of scope.")
+    return _http_get(proxy_url, p)
 
 
 def run_agent(proxy_url, candidate, timeout=75, max_turns=8):
@@ -137,8 +157,8 @@ def _run_anthropic(proxy_url, candidate, timeout, max_turns):
             return "anthropic"
         results = [{
             "type": "tool_result", "tool_use_id": tu.id,
-            "content": _http_get(proxy_url, tu.input.get("path", "/")
-                                 if isinstance(tu.input, dict) else "/"),
+            "content": _scoped_get(proxy_url, tu.input.get("path", "/")
+                                   if isinstance(tu.input, dict) else "/", candidate["endpoint"]),
         } for tu in tool_uses]
         messages.append({"role": "user", "content": results})
     raise AgentTimeout(f"exceeded {max_turns} turns")
@@ -158,8 +178,9 @@ def _run_openrouter(proxy_url, candidate, timeout, max_turns):
         if time.time() > deadline:
             raise AgentTimeout(f"exceeded {timeout}s")
         payload = json.dumps({
-            "model": OPENROUTER_MODEL, "messages": messages,
-            "tools": [tool], "max_tokens": OPENROUTER_MAX_TOKENS,
+            "model": OPENROUTER_MODEL, "messages": messages, "tools": [tool],
+            # Read at call time so .env / env can tune it for a given credit budget.
+            "max_tokens": int(os.environ.get("OPENROUTER_MAX_TOKENS", str(OPENROUTER_MAX_TOKENS))),
         }).encode()
         req = urllib.request.Request(OPENROUTER_URL, data=payload, headers={
             "Authorization": f"Bearer {key}",
@@ -192,6 +213,6 @@ def _run_openrouter(proxy_url, candidate, timeout, max_turns):
                 args = {}
             messages.append({
                 "role": "tool", "tool_call_id": tc["id"],
-                "content": _http_get(proxy_url, args.get("path", "/")),
+                "content": _scoped_get(proxy_url, args.get("path", "/"), candidate["endpoint"]),
             })
     raise AgentTimeout(f"exceeded {max_turns} turns")
