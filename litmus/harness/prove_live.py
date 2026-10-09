@@ -23,9 +23,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LITMUS = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(LITMUS, "oracle"))
 sys.path.insert(0, os.path.join(LITMUS, "attacker"))
+sys.path.insert(0, os.path.join(LITMUS, "triage"))
 from oracle import FileReadOracle  # noqa: E402
 import exploit as exploit_mod  # noqa: E402
 import agent as agent_mod  # noqa: E402
+from triage import triage  # noqa: E402
 from events import EventLog  # noqa: E402
 
 SECRET_PATH = os.path.join(LITMUS, "challenge", "secret")
@@ -96,7 +98,7 @@ def wait_for_target(proxy_url, tries=20):
     return False
 
 
-def prove_candidate(c, oracle, proxy_url, log, use_agent, agent_timeout):
+def prove_candidate(c, oracle, proxy_url, log, use_agent, agent_timeout, use_triage):
     log.emit("candidate_found", id=c["id"], cwe=c["cwe"], finding=c["finding"],
              endpoint=c["endpoint"])
     flag = oracle.plant()
@@ -118,12 +120,22 @@ def prove_candidate(c, oracle, proxy_url, log, use_agent, agent_timeout):
         print("  => REJECTED (baseline leaked the flag)")
         return {"id": c["id"], "status": "REJECTED", "driver": None}
 
-    # 2) Live agent attempt (through the proxy), if enabled. A proof counts only
-    #    if the flag came back from THIS finding's own endpoint (see proof_in_capture).
+    # 2) Triage: decide whether this finding is worth a (slow) live agent attempt.
+    #    'unlikely' candidates skip the agent and go straight to the instant scripted
+    #    check -- which still runs, so a wrong label can't cause a false negative.
+    verdict = "likely"
+    if use_triage:
+        tri = triage(c)
+        verdict = tri["verdict"]
+        log.emit("triaged", id=c["id"], verdict=verdict, by=tri["by"], reason=tri.get("reason"))
+        print(f"  triage: {verdict} ({tri['by']})")
+
+    # 3) Live agent attempt (through the proxy), only for likely candidates. A proof
+    #    counts only if the flag came back from THIS finding's endpoint (proof_in_capture).
     driver, note, artifact = None, None, None
     reset_capture()
     t0 = time.time()
-    if use_agent:
+    if use_agent and verdict == "likely":
         try:
             agent_mod.run_agent(proxy_url, c, timeout=agent_timeout)
             print(f"  agent: attempted live ({int(time.time()-t0)}s)")
@@ -134,7 +146,8 @@ def prove_candidate(c, oracle, proxy_url, log, use_agent, agent_timeout):
     if artifact:
         driver = "agent"
 
-    # 3) Fallback: scripted exploit through the proxy (invisible handoff).
+    # 4) Scripted check: always runs if not already proven (invisible fallback for
+    #    agent misses, and the sole check for triage-skipped candidates).
     if driver is None:
         reset_capture()
         exploit_mod.exploit(proxy_url, c["endpoint"], c["param"], c["exploit"])
@@ -157,6 +170,8 @@ def main():
     ap.add_argument("--events", default=os.path.join(LITMUS, "events.jsonl"))
     ap.add_argument("--no-agent", action="store_true",
                     help="skip the LLM agent; use the scripted exploit only")
+    ap.add_argument("--no-triage", action="store_true",
+                    help="skip triage; run the agent on every candidate")
     ap.add_argument("--agent-timeout", type=int, default=25)
     ap.add_argument("--repeat", type=int, default=1,
                     help="run the candidate set N times with distinct ids (load/stress)")
@@ -176,16 +191,18 @@ def main():
     log = EventLog(args.events)
     oracle = FileReadOracle(SECRET_PATH)
     use_agent = not args.no_agent
+    use_triage = not args.no_triage
     log.emit("run_started", mode="live", proxy=args.proxy_url,
-             agent=use_agent, candidates=len(run_candidates))
+             agent=use_agent, triage=use_triage, candidates=len(run_candidates))
 
     print(f"== Litmus Prove (LIVE) ==  proxy={args.proxy_url}  agent={'on' if use_agent else 'off'}"
-          f"  candidates={len(run_candidates)}")
+          f"  triage={'on' if use_triage else 'off'}  candidates={len(run_candidates)}")
     if not wait_for_target(args.proxy_url):
         print("ERROR: target not reachable through proxy", file=sys.stderr)
         sys.exit(2)
 
-    results = [prove_candidate(c, oracle, args.proxy_url, log, use_agent, args.agent_timeout)
+    results = [prove_candidate(c, oracle, args.proxy_url, log, use_agent,
+                               args.agent_timeout, use_triage)
                for c in run_candidates]
     proven = sum(1 for r in results if r["status"] == "PROVEN")
     by = {}

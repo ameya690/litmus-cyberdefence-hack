@@ -46,11 +46,14 @@ def aggregate_state():
                 order.append(cid)
             cands[cid] = {"id": cid, "cwe": e.get("cwe"), "finding": e.get("finding"),
                           "endpoint": e.get("endpoint"), "flag": None, "control": None,
-                          "status": "pending", "artifact": None, "driver": None, "ms": None}
+                          "triage": None, "status": "pending", "artifact": None,
+                          "driver": None, "ms": None}
         elif cid in cands:
             c = cands[cid]
             if e["event"] == "secret_planted":
                 c["flag"] = e.get("flag")
+            elif e["event"] == "triaged":
+                c["triage"] = e.get("verdict")
             elif e["event"] == "negative_control":
                 c["control"] = bool(e.get("passed"))
             elif e["event"] == "proof_result":
@@ -63,12 +66,15 @@ def aggregate_state():
     proven = sum(1 for c in results if c["status"] == "proven")
     unproven = sum(1 for c in results if c["status"] == "unproven")
     rejected = sum(1 for c in results if c["status"] == "rejected")
+    likely = sum(1 for c in results if c["triage"] == "likely")
     finished = next((e for e in run if e["event"] == "run_finished"), None)
     return {
         "mode": meta.get("mode"),
         "agent": meta.get("agent"),
+        "triage": meta.get("triage"),
         "target": meta.get("target") or meta.get("proxy"),
         "total": len(results),
+        "likely": likely,
         "proven": proven,
         "unproven": unproven,
         "rejected": rejected,

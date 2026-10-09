@@ -137,7 +137,8 @@ function render(s) {
   if (s.total) {
     const stages = [
       { l: "Semgrep candidates", n: s.total, c: "a" },
-      { l: "Exploit attempted", n: s.total, c: "b" },
+      s.triage ? { l: "Triaged likely", n: s.likely, c: "b" }
+               : { l: "Exploit attempted", n: s.total, c: "b" },
       { l: "PROVEN exploitable", n: s.proven, c: "c" },
     ];
     f.innerHTML = stages.map(st => {
@@ -153,6 +154,7 @@ function render(s) {
   cards.innerHTML = s.results.map(c => {
     const ctl = c.control === true ? '<span class="ctl-ok">✓ negative control holds</span>'
               : c.control === false ? '<span class="ctl-bad">✕ baseline leaked</span>' : "";
+    const tri = c.triage ? `<span>triage: ${esc(c.triage)}</span>` : "";
     const timing = c.ms != null ? `${c.ms} ms` : "";
     const driver = c.driver ? `driver: ${esc(c.driver)}` : "";
     const proof = c.artifact
@@ -165,6 +167,7 @@ function render(s) {
       </div>
       <div class="meta">
         <span>endpoint: <code>${esc(c.endpoint)}</code></span>
+        ${tri}
         ${ctl ? `<span>${ctl}</span>` : ""}
         ${timing ? `<span>${timing}</span>` : ""}
         ${driver ? `<span>${driver}</span>` : ""}
