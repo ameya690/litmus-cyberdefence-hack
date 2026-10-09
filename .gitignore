@@ -10,6 +10,7 @@ env/
 **/challenge/secret
 litmus/challenge/secret
 *.log
+events.jsonl
 .env
 
 # OS / editor
