@@ -157,7 +157,7 @@ def main():
     ap.add_argument("--events", default=os.path.join(LITMUS, "events.jsonl"))
     ap.add_argument("--no-agent", action="store_true",
                     help="skip the LLM agent; use the scripted exploit only")
-    ap.add_argument("--agent-timeout", type=int, default=75)
+    ap.add_argument("--agent-timeout", type=int, default=25)
     ap.add_argument("--repeat", type=int, default=1,
                     help="run the candidate set N times with distinct ids (load/stress)")
     args = ap.parse_args()

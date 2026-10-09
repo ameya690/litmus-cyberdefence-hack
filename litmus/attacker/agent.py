@@ -108,7 +108,7 @@ def _scoped_get(proxy_url, path, endpoint):
     return _http_get(proxy_url, p)
 
 
-def run_agent(proxy_url, candidate, timeout=75, max_turns=8):
+def run_agent(proxy_url, candidate, timeout=25, max_turns=4):
     """Run the live agent against the target (through the proxy).
 
     Returns the backend name on normal finish; the harness then reads the wire
