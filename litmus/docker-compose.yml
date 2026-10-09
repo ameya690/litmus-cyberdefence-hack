@@ -9,12 +9,29 @@ services:
       # Oracle plants the secret here (from the host); target reads it read-only.
       - ./challenge:/challenge:ro
     networks: [litmus-net]
-    # No host port published on purpose: the target is reachable ONLY from the
-    # attacker container, over the Docker network (BUILD_PLAN Q2/Q3 isolation).
+    # No host port published on purpose: the target is reachable ONLY from inside
+    # the Docker network -- via the attacker container or the capturing proxy.
+
   attacker:
     build: ./attacker
     depends_on: [target]
     networks: [litmus-net]
+    # Network-only attacker sandbox used by the scripted baseline (prove.py).
+
+  proxy:
+    build: ./proxy
+    environment:
+      - TARGET_URL=http://target:5000
+      - CAPTURE_FILE=/capture/wire.log
+      - PORT=8080
+    volumes:
+      # Proxy tees the target's responses here; the oracle (host) reads this.
+      - ./capture:/capture
+    ports:
+      - "127.0.0.1:8080:8080"   # the proxy is the ONLY channel exposed to the host
+    depends_on: [target]
+    networks: [litmus-net]
+
 networks:
   litmus-net:
     driver: bridge

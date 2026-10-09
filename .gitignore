@@ -11,6 +11,7 @@ env/
 litmus/challenge/secret
 *.log
 events.jsonl
+**/capture/wire.log
 .env
 
 # OS / editor
