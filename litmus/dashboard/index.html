@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Litmus — Report</title>
+<style>
+  /* Light default; dark under prefers-color-scheme (dataviz palette roles). */
+  :root {
+    --surface-0: #f4f4f1; --surface-1: #fcfcfb; --surface-2: #efefe9;
+    --border: #e2e1da; --text-primary: #0b0b0b; --text-secondary: #52514e;
+    --text-muted: #8a897f; --blue: #2a78d6; --funnel: #86b6ef;
+    --good: #0ca30c; --critical: #d03b3b; --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      --surface-0: #121211; --surface-1: #1a1a19; --surface-2: #232321;
+      --border: #333330; --text-primary: #ffffff; --text-secondary: #c3c2b7;
+      --text-muted: #8f8e84; --blue: #3987e5; --funnel: #184f95; --good: #0ca30c; --critical: #d03b3b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-0); color: var(--text-primary);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: -0.02em; }
+  .tagline { color: var(--text-secondary); font-size: 14px; }
+  .live { margin-left: auto; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+  .dot.on { background: var(--good); box-shadow: 0 0 0 0 rgba(12,163,12,.6); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(12,163,12,0); } 100% { box-shadow: 0 0 0 0 rgba(12,163,12,0); } }
+
+  .secret {
+    margin: 22px 0; padding: 16px 18px; background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 12px; border-left: 3px solid var(--blue);
+  }
+  .secret .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
+  .secret .v { font-family: var(--mono); font-size: 18px; color: var(--blue); word-break: break-all; margin-top: 2px; }
+  .secret .note { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0 8px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .n { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; }
+  .tile .l { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .tile.proven .n { color: var(--good); }
+
+  .funnel { display: grid; gap: 8px; margin: 14px 0 26px; }
+  .frow { display: grid; grid-template-columns: 150px 1fr 28px; align-items: center; gap: 12px; }
+  .frow .fl { font-size: 12.5px; color: var(--text-secondary); }
+  .ftrack { height: 26px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .ffill { height: 100%; border-radius: 6px; min-width: 3px; transition: width .4s ease; }
+  .ffill.f-a { background: var(--funnel); } .ffill.f-b { background: var(--blue); } .ffill.f-c { background: var(--good); }
+  .frow .fn { font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; color: var(--text-secondary); }
+
+  .cards { display: grid; gap: 12px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .card.proven { border-left: 3px solid var(--good); }
+  .card.rejected { border-left: 3px solid var(--critical); }
+  .card.unproven { border-left: 3px solid var(--border); }
+  .card .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .finding { font-family: var(--mono); font-size: 13.5px; }
+  .cwe { font-size: 11px; color: var(--text-muted); border: 1px solid var(--border); border-radius: 20px; padding: 1px 8px; }
+  .badge { margin-left: auto; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 20px; }
+  .badge.proven { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .badge.unproven { color: var(--text-secondary); background: var(--surface-2); }
+  .badge.rejected { color: var(--critical); background: color-mix(in srgb, var(--critical) 14%, transparent); }
+  .meta { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; color: var(--text-secondary); }
+  .meta .ctl-ok { color: var(--good); } .meta .ctl-bad { color: var(--critical); }
+  .proof { margin-top: 10px; font-family: var(--mono); font-size: 12.5px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text-primary); word-break: break-all; }
+  .proof .pk { color: var(--text-muted); }
+  .empty { color: var(--text-muted); text-align: center; padding: 48px 0; }
+  footer { margin-top: 28px; font-size: 12px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Litmus</h1>
+    <span class="tagline">possible vulnerabilities, <strong>proven by exploitation</strong></span>
+    <span class="live"><span class="dot" id="dot"></span><span id="livetxt">idle</span></span>
+  </header>
+
+  <div class="secret" id="secretBox" style="display:none">
+    <div class="k">secret planted live</div>
+    <div class="v" id="secretVal">—</div>
+    <div class="note">Random, generated at attack time. The attacker is <strong>never told this value</strong> — it can only appear if a real exploit read it off the target.</div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="n" id="tTotal">0</div><div class="l">Semgrep candidates</div></div>
+    <div class="tile"><div class="n" id="tAttempt">0</div><div class="l">Exploit attempted</div></div>
+    <div class="tile proven"><div class="n" id="tProven">0</div><div class="l">PROVEN exploitable</div></div>
+    <div class="tile"><div class="n" id="tUnproven">0</div><div class="l">Unproven / rejected</div></div>
+  </div>
+
+  <div class="funnel" id="funnel"></div>
+
+  <div class="cards" id="cards"><div class="empty">Waiting for a Prove run… start one with <code>cd litmus &amp;&amp; ./run_live.sh</code></div></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => (s == null ? "" : String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])));
+const dec = (s) => { try { return decodeURIComponent(s); } catch (e) { return s; } };
+
+function badge(status) {
+  if (status === "proven")   return '<span class="badge proven">✓ PROVEN</span>';
+  if (status === "rejected") return '<span class="badge rejected">✕ REJECTED</span>';
+  if (status === "unproven") return '<span class="badge unproven">○ UNPROVEN</span>';
+  return '<span class="badge unproven">… pending</span>';
+}
+
+function render(s) {
+  $("tTotal").textContent = s.total;
+  $("tAttempt").textContent = s.total;
+  $("tProven").textContent = s.proven;
+  $("tUnproven").textContent = s.unproven + s.rejected;
+
+  const dot = $("dot");
+  dot.className = "dot" + (s.running ? " on" : "");
+  $("livetxt").textContent = s.running ? "running" : (s.total ? "complete" : "idle");
+
+  if (s.latest_secret) {
+    $("secretBox").style.display = "";
+    $("secretVal").textContent = s.latest_secret;
+  }
+
+  // Funnel: three stacked stages, fill width proportional to count / candidates.
+  const f = $("funnel");
+  if (s.total) {
+    const stages = [
+      { l: "Semgrep candidates", n: s.total, c: "a" },
+      { l: "Exploit attempted", n: s.total, c: "b" },
+      { l: "PROVEN exploitable", n: s.proven, c: "c" },
+    ];
+    f.innerHTML = stages.map(st => {
+      const pct = s.total ? Math.round(100 * st.n / s.total) : 0;
+      return `<div class="frow"><div class="fl">${st.l}</div>` +
+        `<div class="ftrack"><div class="ffill f-${st.c}" style="width:${pct}%"></div></div>` +
+        `<div class="fn">${st.n}</div></div>`;
+    }).join("");
+  } else { f.innerHTML = ""; }
+
+  const cards = $("cards");
+  if (!s.results.length) return;
+  cards.innerHTML = s.results.map(c => {
+    const ctl = c.control === true ? '<span class="ctl-ok">✓ negative control holds</span>'
+              : c.control === false ? '<span class="ctl-bad">✕ baseline leaked</span>' : "";
+    const timing = c.ms != null ? `${c.ms} ms` : "";
+    const driver = c.driver ? `driver: ${esc(c.driver)}` : "";
+    const proof = c.artifact
+      ? `<div class="proof"><span class="pk">proof:</span> ${esc(dec(c.artifact))}</div>` : "";
+    return `<div class="card ${c.status}">
+      <div class="top">
+        <span class="finding">${esc(c.finding)}</span>
+        <span class="cwe">${esc(c.cwe)}</span>
+        ${badge(c.status)}
+      </div>
+      <div class="meta">
+        <span>endpoint: <code>${esc(c.endpoint)}</code></span>
+        ${ctl ? `<span>${ctl}</span>` : ""}
+        ${timing ? `<span>${timing}</span>` : ""}
+        ${driver ? `<span>${driver}</span>` : ""}
+      </div>
+      ${proof}
+    </div>`;
+  }).join("");
+  $("foot").textContent = `${s.mode || ""} ${s.agent ? "· agent on" : ""} ${s.target ? "· " + s.target : ""}`.trim();
+}
+
+async function tick() {
+  try { const r = await fetch("/api/state"); render(await r.json()); }
+  catch (e) { /* server not up yet */ }
+}
+tick(); setInterval(tick, 2000);
+</script>
+</body>
+</html>

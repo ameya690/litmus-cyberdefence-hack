@@ -97,8 +97,12 @@ def wait_for_target(proxy_url, tries=20):
 
 
 def prove_candidate(c, oracle, proxy_url, log, use_agent, agent_timeout):
-    log.emit("candidate_found", id=c["id"], cwe=c["cwe"], finding=c["finding"])
+    log.emit("candidate_found", id=c["id"], cwe=c["cwe"], finding=c["finding"],
+             endpoint=c["endpoint"])
     flag = oracle.plant()
+    # Emit the planted secret for the dashboard's "visible randomness" moment.
+    # Operator-side only; the attacker is never given this value.
+    log.emit("secret_planted", id=c["id"], flag=flag)
     print(f"\n[{c['id']}] {c['finding']}")
     print(f"  planted {flag}  (the attacker is never told this value)")
 
