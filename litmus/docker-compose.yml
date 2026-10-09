@@ -1,0 +1,20 @@
+name: litmus
+services:
+  target:
+    build: ./target_app
+    environment:
+      - DOCS_DIR=/app/docs
+      - PORT=5000
+    volumes:
+      # Oracle plants the secret here (from the host); target reads it read-only.
+      - ./challenge:/challenge:ro
+    networks: [litmus-net]
+    # No host port published on purpose: the target is reachable ONLY from the
+    # attacker container, over the Docker network (BUILD_PLAN Q2/Q3 isolation).
+  attacker:
+    build: ./attacker
+    depends_on: [target]
+    networks: [litmus-net]
+networks:
+  litmus-net:
+    driver: bridge
