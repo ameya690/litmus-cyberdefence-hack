@@ -32,6 +32,15 @@ services:
     depends_on: [target]
     networks: [litmus-net]
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    profiles: ["clickhouse"]   # opt-in: docker compose --profile clickhouse up -d
+    ports:
+      - "127.0.0.1:8123:8123"  # HTTP interface, reached by the harness + dashboard
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    networks: [litmus-net]
+
 networks:
   litmus-net:
     driver: bridge

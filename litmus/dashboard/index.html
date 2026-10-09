@@ -55,6 +55,9 @@
   .ffill { height: 100%; border-radius: 6px; min-width: 3px; transition: width .4s ease; }
   .ffill.f-a { background: var(--funnel); } .ffill.f-b { background: var(--blue); } .ffill.f-c { background: var(--good); }
   .frow .fn { font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; color: var(--text-secondary); }
+  .ch { margin: -14px 0 24px; font-size: 12.5px; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .ch .chlabel { color: var(--blue); font-weight: 650; }
+  .ch .v { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
   .cards { display: grid; gap: 12px; }
   .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
@@ -99,6 +102,7 @@
   </div>
 
   <div class="funnel" id="funnel"></div>
+  <div class="ch" id="ch"></div>
 
   <div class="cards" id="cards"><div class="empty">Waiting for a Prove run… start one with <code>cd litmus &amp;&amp; ./run_live.sh</code></div></div>
 
@@ -182,7 +186,24 @@ async function tick() {
   try { const r = await fetch("/api/state"); render(await r.json()); }
   catch (e) { /* server not up yet */ }
 }
+
+async function tickCh() {
+  const el = $("ch");
+  try {
+    const d = await (await fetch("/api/ch")).json();
+    if (!d.enabled) { el.innerHTML = ""; return; }
+    el.innerHTML =
+      `<span class="chlabel">ClickHouse</span>` +
+      `<span>cumulative across <span class="v">${d.runs}</span> runs</span>` +
+      `<span><span class="v">${d.rows}</span> events</span>` +
+      `<span><span class="v">${d.proven}</span> proven / <span class="v">${d.candidates}</span> candidates</span>` +
+      `<span>avg proof <span class="v">${d.avg_proof_ms || 0}</span> ms</span>` +
+      `<span>funnel query <span class="v">${d.query_ms}</span> ms</span>`;
+  } catch (e) { el.innerHTML = ""; }
+}
+
 tick(); setInterval(tick, 2000);
+tickCh(); setInterval(tickCh, 3000);
 </script>
 </body>
 </html>
