@@ -1,0 +1,114 @@
+# Litmus — Project Plan
+
+A hackathon build inspired by the Antiproof paper (UC Berkeley, 2026), which is in
+this directory. Read `Antiproof paper.pdf` (or the paper file alongside this one) for the
+source design. This plan is the scoped, time-boxed version for a one-day cyberdefense
+hackathon.
+
+---
+
+## 1. One-line description
+
+Litmus finds possible software vulnerabilities and attacks each one in a safe
+container to prove that it is real.
+
+## 2. The core idea (what makes this not just another scanner)
+
+Most AI security scanners emit findings that a human still has to verify. Litmus only
+counts a vulnerability as real if an AI attacker **actually exploits it** in a sandbox
+and a trusted **oracle** confirms success. The oracle plants a random secret; a finding
+is stamped PROVEN only if the attacker retrieves that exact secret. The proof cannot be
+faked or hallucinated, because the secret is random and checked by code, not by an LLM.
+
+This is the single idea to protect. Everything else is scaffolding around it.
+
+Mapping to the paper: Litmus keeps Antiproof's Synthesis → Detection → Validation shape
+but replaces detector *synthesis* with an off-the-shelf scanner, and keeps the
+proof-of-exploitability oracle as the centerpiece.
+
+## 3. Constraints
+
+- Event window ~10:00–19:30; **submission deadline 16:30**. Real build time ~5.5 hours.
+- Fully in-person. Demo is live and judged.
+- Only attack apps we own/control. No third-party targets.
+
+## 4. Architecture — four stages
+
+1. **Detect.** Run Semgrep (default rules) against a deliberately vulnerable
+   Flask/FastAPI app. Output: candidate list (file, line, CWE). Semgrep was an actual
+   baseline in the paper, so this is defensible, not a shortcut.
+
+2. **Triage.** An LLM reads each Semgrep hit plus a window of surrounding code and
+   labels it likely-real vs likely-false-positive. This is the "reduce false positives"
+   half of the story and gives us something to show even before exploitation works.
+
+3. **Prove.** For each likely-real candidate: start the target app in a Docker
+   container, the oracle plants a random secret, an LLM attacker agent tries to retrieve
+   it live. A **scripted exploit acts as a silent fallback** if the agent fails or times
+   out. The oracle checks the returned value against the planted secret.
+
+4. **Report.** A dashboard showing each finding stamped PROVEN / UNPROVEN, with the
+   proof artifact (the request or command that worked) and per-stage timing.
+
+## 5. Decisions already made
+
+- **First oracle capability: arbitrary file read.** Plant `FLAG-<random>` in a file;
+  plant a path-traversal bug (e.g. `/download?file=../../secret`); the attacker must
+  return the exact flag string. Visually obvious, easy to make genuinely exploitable,
+  and the oracle is trivial and tamper-resistant. This is almost exactly the paper's
+  file-read oracle. **RCE is a stretch goal, not v1.**
+- **Target app is AI-generated** with planted bugs, so a Semgrep finding qualifies for
+  the "vulnerability in AI-generated code" prize.
+- **Attack is LLM-driven live, hybrid with a scripted fallback underneath, presented as
+  autonomous.** The agent and the fallback share one interface: both only need to make
+  the secret appear in the oracle's challenge location. The oracle does not care which
+  one succeeded.
+
+## 6. Sponsor integrations (do not let these distort the core)
+
+- **Semgrep** — the detector. Core, already in. Prize is "best vulnerability detected by
+  Semgrep in AI-generated code," which is why the target app is AI-generated.
+- **ClickHouse** — emit every pipeline event (candidate found, triaged, proof attempted,
+  proof accepted/rejected, per-stage latency) and build a live funnel dashboard as the
+  Report stage. Judged on data scale, query latency, and how directly insights drive
+  detection/remediation. Scale honestly by scanning several apps or replaying candidates.
+- **Guild.ai** — host the triage + attacker agents. Stretch; wire only after the core
+  loop works end to end.
+- **Akash / Pi / Senso** — skipped. Akash only fits if we self-host an open model (not
+  needed). Pi provides no tool access at the event. Senso's fit is too thin to justify.
+
+## 7. Build order (lock the skeleton first, polish second)
+
+1. AI-generate the vulnerable Flask app with a planted path-traversal bug.
+2. Build the file-read oracle (plant random secret, check returned value).
+3. Wire Semgrep to scan the app → candidate list.
+4. Get **one scripted exploit proving one finding end to end.** This is the
+   guaranteed-working baseline. Target: done by lunch.
+5. Layer the LLM attacker agent on top, with the script as fallback.
+6. Emit events to ClickHouse; build the funnel dashboard.
+7. Stretch: move agents onto Guild; add the RCE oracle.
+
+Rule: there must always be a demoable system. Every later piece only raises the ceiling,
+never replaces a working loop.
+
+## 8. Open questions to grill (ordered by how badly they'd sink the project)
+
+1. **Oracle integrity.** Is the file-read oracle actually tamper-proof? Can the attacker
+   agent cheat — read the secret from a path the oracle itself exposed, echo the flag
+   without a real exploit, or reach the secret through a non-vulnerability? If the oracle
+   can be gamed, the whole premise collapses. Attack this first.
+2. **Demo risk.** What is most likely to break live at the deadline? Is the
+   agent-vs-fallback boundary clean enough that the oracle genuinely cannot tell them
+   apart? What happens if the API is slow or rate-limited mid-demo?
+3. **Scope realism.** Given 5.5 hours, what gets cut to guarantee the end-to-end loop by
+   lunch? Likely underestimates: per-candidate Docker orchestration, attacker agent tool
+   setup, ClickHouse wiring.
+4. **Sponsor add-ons.** Do ClickHouse and Guild genuinely improve the demo, or are they
+   being bolted on at the cost of core polish?
+
+## 9. Non-goals (explicitly out of scope for the day)
+
+- Detector *synthesis* (we use Semgrep's rules as-is).
+- The paper's custom graph engine / eCPG traversals.
+- Client-side vulnerability classes (e.g. XSS) — the paper doesn't cover them either.
+- Scanning or attacking any system we do not own.
