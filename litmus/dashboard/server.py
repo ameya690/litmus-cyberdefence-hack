@@ -12,17 +12,26 @@ Run:  python dashboard/server.py   (then open http://127.0.0.1:8900)
 """
 import json
 import os
+import sys
 
 from flask import Flask, Response, jsonify
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LITMUS = os.path.dirname(HERE)
 EVENTS = os.environ.get("LITMUS_EVENTS", os.path.join(LITMUS, "events.jsonl"))
+sys.path.insert(0, os.path.join(LITMUS, "report"))
 
 app = Flask(__name__)
 
 
 def _read_events():
+    # ClickHouse is a drop-in behind this read: same records, same folding below.
+    try:
+        import clickhouse
+        if clickhouse.enabled():
+            return clickhouse.read_events()
+    except Exception:  # noqa: BLE001 - fall back to the local log if CH is unreachable
+        pass
     try:
         with open(EVENTS) as f:
             return [json.loads(line) for line in f if line.strip()]
@@ -88,6 +97,20 @@ def aggregate_state():
 @app.route("/api/state")
 def api_state():
     return jsonify(aggregate_state())
+
+
+@app.route("/api/ch")
+def api_ch():
+    """Cumulative funnel across all runs, computed in ClickHouse (scale + latency)."""
+    try:
+        import clickhouse
+        if not clickhouse.enabled():
+            return jsonify({"enabled": False})
+        f = clickhouse.funnel()
+        f["enabled"] = True
+        return jsonify(f)
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"enabled": False, "error": str(e)})
 
 
 @app.route("/")
