@@ -13,6 +13,8 @@ guessed or hallucinated — because the proof is checked by code, not by an LLM.
 
 A 32-second walkthrough of the live dashboard — the proof-of-exploitability funnel.
 
+[Demo Video](https://private-user-images.githubusercontent.com/53044799/671489378-9e5138c7-9e6b-4572-9e32-d3d919231249.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3OTE4MjIwNzksIm5iZiI6MTc5MTgyMTc3OSwicGF0aCI6Ii81MzA0NDc5OS82NzE0ODkzNzgtOWU1MTM4YzctOWU2Yi00NTcyLTllMzItZDNkOTE5MjMxMjQ5Lm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjEwMTIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYxMDEyVDE2MTYxOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWQwYjg1OGYxNWMwNzRhN2Y3M2Q1ZDJjYjQ5YmE3ZmJiZjE5YmFjNDY2NzRlMjVkZTIzMTAxOGE0ZTc0YjE5NTMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT12aWRlbyUyRm1wNCJ9.o1gKB_GYkug5mDY3eB_8NADYtyYM2HBYX3W57DLh2mk)
+
 [![Litmus demo video](media/demo-poster.png)](https://github.com/ameya690/litmus-cyberdefence-hack/blob/main/media/litmus-demo.mp4)
 
 <!-- To play the video INLINE in this README (no click at all): edit this README on github.com,
