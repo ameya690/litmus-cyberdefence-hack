@@ -12,7 +12,6 @@ guessed or hallucinated — because the proof is checked by code, not by an LLM.
 ## 🎬 Demo
 
 A 32-second walkthrough of the live dashboard — the proof-of-exploitability funnel.
-**[▶ Play it on GitHub](https://github.com/ameya690/litmus-cyberdefence-hack/blob/main/media/litmus-demo.mp4)** (GitHub's player — no download), or click the preview:
 
 [![Litmus demo video](media/demo-poster.png)](https://github.com/ameya690/litmus-cyberdefence-hack/blob/main/media/litmus-demo.mp4)
 
