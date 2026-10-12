@@ -18,3 +18,10 @@ events.jsonl
 .DS_Store
 .idea/
 .vscode/
+
+# demovie (video tooling artifacts)
+litmus/.demovie/
+litmus/.claude/skills/demovie/
+
+# copyrighted preprint — kept local, linked in README
+/Antiproof paper.pdf
