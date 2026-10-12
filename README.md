@@ -12,12 +12,14 @@ guessed or hallucinated — because the proof is checked by code, not by an LLM.
 ## 🎬 Demo
 
 A 32-second walkthrough of the live dashboard — the proof-of-exploitability funnel.
+**[▶ Play it on GitHub](https://github.com/ameya690/litmus-cyberdefence-hack/blob/main/media/litmus-demo.mp4)** (GitHub's player — no download), or click the preview:
 
-<video src="https://github.com/ameya690/litmus-cyberdefence-hack/raw/main/media/litmus-demo.mp4" poster="https://github.com/ameya690/litmus-cyberdefence-hack/raw/main/media/demo-poster.png" controls muted width="100%"></video>
+[![Litmus demo video](media/demo-poster.png)](https://github.com/ameya690/litmus-cyberdefence-hack/blob/main/media/litmus-demo.mp4)
 
-<!-- If the inline player doesn't render in your browser, the poster below links to the MP4. -->
-
-[![Litmus demo video](media/demo-poster.png)](https://github.com/ameya690/litmus-cyberdefence-hack/raw/main/media/litmus-demo.mp4)
+<!-- To play the video INLINE in this README (no click at all): edit this README on github.com,
+     delete this Demo block, and drag media/litmus-demo.mp4 into the editor. GitHub uploads it and
+     inserts a https://github.com/.../assets/<id> URL that renders as an embedded video player.
+     (GitHub only inline-embeds videos uploaded through its web UI, not files referenced by path.) -->
 
 ## The problem
 
