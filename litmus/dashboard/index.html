@@ -88,23 +88,23 @@
     <span class="live"><span class="dot" id="dot"></span><span id="livetxt">idle</span></span>
   </header>
 
-  <div class="secret" id="secretBox" style="display:none">
+  <div class="secret" id="secretBox" data-demovie="secret" style="display:none">
     <div class="k">secret planted live</div>
     <div class="v" id="secretVal">—</div>
     <div class="note">Random, generated at attack time. The attacker is <strong>never told this value</strong> — it can only appear if a real exploit read it off the target.</div>
   </div>
 
-  <div class="tiles">
+  <div class="tiles" data-demovie="tiles">
     <div class="tile"><div class="n" id="tTotal">0</div><div class="l">Semgrep candidates</div></div>
     <div class="tile"><div class="n" id="tAttempt">0</div><div class="l">Exploit attempted</div></div>
-    <div class="tile proven"><div class="n" id="tProven">0</div><div class="l">PROVEN exploitable</div></div>
+    <div class="tile proven" data-demovie="proven"><div class="n" id="tProven">0</div><div class="l">PROVEN exploitable</div></div>
     <div class="tile"><div class="n" id="tUnproven">0</div><div class="l">Unproven / rejected</div></div>
   </div>
 
-  <div class="funnel" id="funnel"></div>
-  <div class="ch" id="ch"></div>
+  <div class="funnel" id="funnel" data-demovie="funnel"></div>
+  <div class="ch" id="ch" data-demovie="clickhouse"></div>
 
-  <div class="cards" id="cards"><div class="empty">Waiting for a Prove run… start one with <code>cd litmus &amp;&amp; ./run_live.sh</code></div></div>
+  <div class="cards" id="cards" data-demovie="cards"><div class="empty">Waiting for a Prove run… start one with <code>cd litmus &amp;&amp; ./run_live.sh</code></div></div>
 
   <footer id="foot"></footer>
 </div>
