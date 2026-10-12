@@ -11,10 +11,13 @@ guessed or hallucinated — because the proof is checked by code, not by an LLM.
 
 ## 🎬 Demo
 
-[![Litmus demo video](media/demo-poster.png)](https://github.com/ameya690/litmus-cyberdefence-hack/raw/main/media/litmus-demo.mp4)
+A 32-second walkthrough of the live dashboard — the proof-of-exploitability funnel.
 
-*A 32-second walkthrough of the live dashboard — the proof-of-exploitability funnel.
-[▶ Download / play the MP4](media/litmus-demo.mp4).*
+<video src="https://github.com/ameya690/litmus-cyberdefence-hack/raw/main/media/litmus-demo.mp4" poster="https://github.com/ameya690/litmus-cyberdefence-hack/raw/main/media/demo-poster.png" controls muted width="100%"></video>
+
+<!-- If the inline player doesn't render in your browser, the poster below links to the MP4. -->
+
+[![Litmus demo video](media/demo-poster.png)](https://github.com/ameya690/litmus-cyberdefence-hack/raw/main/media/litmus-demo.mp4)
 
 ## The problem
 
