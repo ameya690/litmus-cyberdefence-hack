@@ -7,7 +7,7 @@ having an AI agent exploit it live in a sandbox, where a trusted **oracle** conf
 planted secret. A finding is only ever stamped **PROVEN** if it was *actually exploited* — never
 guessed or hallucinated — because the proof is checked by code, not by an LLM.
 
-> Built in a day for a cyberdefense hackathon. Inspired by the Antiproof paper ([see bottom](#inspiration)).
+> Built for the cyberdefense hack. Inspired by the Antiproof paper ([see bottom](#inspiration)).
 
 ## 🎬 Demo
 
